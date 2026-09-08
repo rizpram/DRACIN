@@ -1,2 +1,7 @@
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /admin
+Disallow: /audit
+
+Sitemap: https://tv.rizpram.cloud/sitemap.xml

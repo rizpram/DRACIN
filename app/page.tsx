@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AdSlot, SupportButton } from "@/components/Monetization";
+import { AdSlot, LegalFooter, SupportButton } from "@/components/Monetization";
 import { BottomNav, TopBar } from "@/components/AppChrome";
 import { DramaCard } from "@/components/DramaUI";
 import { getHomePayload } from "@/lib/home-feed";
@@ -27,7 +27,7 @@ export default async function HomePage(){
 
     <section className="home-section premium-section"><div className="section-title-row"><div><span className="eyebrow">Trending</span><h2>Sedang ramai</h2></div><Link href="/discover">Lihat semua ›</Link></div><div className="premium-grid">{dramas.slice(0,8).map((d,i)=><DramaCard key={d.id} drama={d} index={i} priority={i<2}/>)}</div></section>
 
-    <AdSlot slot={process.env.NEXT_PUBLIC_ADSENSE_HOME_SLOT}/>
+    <AdSlot placement="home"/>
 
     <section className="home-section premium-section" id="providers"><div className="section-title-row"><div><span className="eyebrow">Sumber Konten</span><h2>Provider sehat</h2></div><Link href="/discover">Semua provider ›</Link></div>
       {captain.length?<div className="provider-block"><h3>Captain <small>primary</small></h3><div className="provider-chip-grid">{captain.map(p=><Link href={`/provider/${p.slug}`} key={p.slug}><span className="source-dot captain"/><strong>{p.name}</strong></Link>)}</div></div>:null}
@@ -35,6 +35,6 @@ export default async function HomePage(){
     </section>
 
     <section className="home-section premium-section"><div className="section-title-row"><div><span className="eyebrow">Untuk Kamu</span><h2>Lanjut jelajah</h2></div></div><div className="premium-grid">{dramas.slice(8,20).map((d,i)=><DramaCard key={d.id} drama={d} index={i}/>)}</div></section>
-    <SupportButton/><BottomNav/>
+    <LegalFooter/><SupportButton/><BottomNav/>
   </div></main>
 }
