@@ -8,6 +8,7 @@ import type { Drama } from "@/lib/dramas";
 const FAV_KEY="dracin_favorites";
 const HIST_KEY="dracin_history";
 function read<T>(key:string,fallback:T):T{try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback}catch{return fallback}}
+function episodeCount(drama:Drama){return (drama as Drama&{episodeCount?:number}).episodeCount??drama.episodes.length}
 export type LocalHistory={id:string;title:string;cover:string;episode:number;provider?:string;at:number};
 export function addHistory(drama:Drama,episode:number){const current=read<LocalHistory[]>(HIST_KEY,[]);const next=[{id:drama.id,title:drama.title,cover:drama.cover,episode,provider:drama.provider,at:Date.now()},...current.filter(x=>x.id!==drama.id)].slice(0,50);localStorage.setItem(HIST_KEY,JSON.stringify(next));window.dispatchEvent(new Event("dracin-history"))}
 
@@ -17,17 +18,17 @@ export function ShareButton({title}:{title:string}){async function share(){try{i
 
 function PosterImage({src,alt,priority=false}:{src:string;alt:string;priority?:boolean}){
   const [failed,setFailed]=useState(false);
-  const optimizable=/^https:\/\//i.test(src)&&!failed;
+  const optimizable=/^https?:\/\//i.test(src)&&!failed;
   if(!optimizable)return <img src={src} alt={alt} loading={priority?"eager":"lazy"} decoding="async" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}/>;
   return <Image src={src} alt={alt} fill sizes="(max-width: 430px) 46vw, 190px" quality={65} priority={priority} onError={()=>setFailed(true)} style={{objectFit:"cover"}}/>;
 }
 
-export function DramaCard({drama,index=0,priority=false}:{drama:Drama;index?:number;priority?:boolean}){return <article className="premium-drama-card" style={{animationDelay:`${Math.min(index*40,400)}ms`}}>
+export function DramaCard({drama,index=0,priority=false}:{drama:Drama;index?:number;priority?:boolean}){const count=episodeCount(drama);return <article className="premium-drama-card" style={{animationDelay:`${Math.min(index*40,400)}ms`}}>
   <Link href={`/drama/${encodeURIComponent(drama.id)}`} className="poster-link">
     <div className="premium-poster" style={{position:"relative",overflow:"hidden"}}>
       <PosterImage src={drama.cover} alt={drama.title} priority={priority}/>
       <span className="card-provider">{drama.providerName||drama.provider}</span>
-      <span className="episode-badge">{drama.episodes.length?`${drama.episodes.length} EP`:"DRAMA"}</span>
+      <span className="episode-badge">{count?`${count} EP`:"DRAMA"}</span>
       <span className="poster-play">▶</span>
     </div>
   </Link>
