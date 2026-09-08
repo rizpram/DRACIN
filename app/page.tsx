@@ -7,6 +7,8 @@ import { PROVIDER_DIRECTORY } from "@/lib/provider-directory";
 
 export const dynamic="force-dynamic";
 
+function episodeCount(drama:{episodes:unknown[];episodeCount?:number}){return drama.episodeCount??drama.episodes.length}
+
 export default async function HomePage(){
   const {dramas,healthyProviders}=await getHomePayload();
   const featured=dramas.slice(0,3);
@@ -17,7 +19,7 @@ export default async function HomePage(){
     <TopBar />
     <section className="premium-hero">
       {featured.length?featured.map((drama,index)=><article key={drama.id} className={`premium-hero-slide ${index===0?"primary":""}`} style={{backgroundImage:`url(${drama.backdrop||drama.cover})`}}>
-        <div className="premium-hero-gradient"/><div className="premium-hero-copy"><span className="eyebrow">Pilihan Hari Ini · {drama.providerName||"FreeReels"}</span><h1>{drama.title}</h1><p>{drama.synopsis}</p><div className="hero-meta"><span>★ 4.8</span><span>{drama.episodes.length||"?"} EP</span><span>{drama.genre}</span></div><div className="hero-actions"><Link className="primary-action" href={`/watch/${drama.id}/1`}>▶ Tonton</Link><Link className="ghost-action" href={`/drama/${drama.id}`}>Detail</Link></div></div>
+        <div className="premium-hero-gradient"/><div className="premium-hero-copy"><span className="eyebrow">Pilihan Hari Ini · {drama.providerName||"FreeReels"}</span><h1>{drama.title}</h1><p>{drama.synopsis}</p><div className="hero-meta"><span>★ 4.8</span><span>{episodeCount(drama)||"?"} EP</span><span>{drama.genre}</span></div><div className="hero-actions"><Link className="primary-action" href={`/watch/${drama.id}/1`}>▶ Tonton</Link><Link className="ghost-action" href={`/drama/${drama.id}`}>Detail</Link></div></div>
       </article>):<div className="premium-hero-empty"><span className="eyebrow">DRACIN LIVE</span><h1>Katalog sedang dimuat</h1><p>Provider belum mengembalikan katalog.</p></div>}
     </section>
 
