@@ -15,7 +15,8 @@ const metrics = {
 
 const redisUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || "";
 const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || "";
-const prefix = process.env.DRACIN_CACHE_PREFIX || "dracin";
+const cacheEnvironment = process.env.VERCEL_ENV || process.env.NODE_ENV || "development";
+const prefix = `${process.env.DRACIN_CACHE_PREFIX || "dracin"}:${cacheEnvironment}`;
 
 function fullKey(key: string) {
   return `${prefix}:${key}`;
@@ -142,6 +143,7 @@ export function getSharedCacheStats() {
     fresh,
     inflight: inflight.size,
     redis: sharedCacheEnabled(),
+    environment: cacheEnvironment,
     lookups: totalLookups,
     hits: totalHits,
     misses: metrics.misses,
