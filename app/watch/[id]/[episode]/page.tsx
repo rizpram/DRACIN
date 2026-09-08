@@ -5,10 +5,13 @@ import { AdSlot } from "@/components/Monetization";
 import { getDrama, getEpisodeStream } from "@/lib/dramas";
 import { getVerifiedDrama, getVerifiedEpisodeStream } from "@/lib/playable-catalog";
 
+function decodeRouteId(value:string){try{return decodeURIComponent(value)}catch{return value}}
 function providerSlugFromId(id:string){const clean=id.startsWith("sansekai:")?id.slice("sansekai:".length):id;const i=clean.indexOf("--");return i>0?clean.slice(0,i):""}
 
 export default async function WatchPage({params}:{params:Promise<{id:string;episode:string}>}){
-  const {id,episode}=await params;
+  const route=await params;
+  const id=decodeRouteId(route.id);
+  const episode=route.episode;
   const drama=(await getVerifiedDrama(id)) || await getDrama(id);
   const episodeNumber=Number(episode);
 
