@@ -6,6 +6,7 @@ import "./globals.css";
 import "./premium.css";
 import "./audit-fixes.css";
 import "./monetization.css";
+import "./discovery.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://tv.rizpram.cloud"),

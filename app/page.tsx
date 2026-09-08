@@ -2,12 +2,12 @@ import Link from "next/link";
 import { AdSlot, LegalFooter, SupportButton } from "@/components/Monetization";
 import { BottomNav, TopBar } from "@/components/AppChrome";
 import { DramaCard } from "@/components/DramaUI";
+import { CollectionStrip, EpisodeUpdates } from "@/components/DiscoveryUI";
+import { DISCOVERY_GENRES, episodeCount } from "@/lib/discovery";
 import { getHomePayload } from "@/lib/home-feed";
 import { PROVIDER_DIRECTORY } from "@/lib/provider-directory";
 
 export const dynamic="force-dynamic";
-
-function episodeCount(drama:{episodes:unknown[];episodeCount?:number}){return drama.episodeCount??drama.episodes.length}
 
 export default async function HomePage(){
   const {dramas,healthyProviders}=await getHomePayload();
@@ -23,13 +23,15 @@ export default async function HomePage(){
       </article>):<div className="premium-hero-empty"><span className="eyebrow">DRACIN LIVE</span><h1>Katalog sedang dimuat</h1><p>Provider belum mengembalikan katalog.</p></div>}
     </section>
 
-    <section className="genre-strip" aria-label="Genre"><Link className="active" href="/discover">Semua</Link>{["Romansa","Action","Komedi","Fantasi","Thriller","Drama","Misteri"].map(x=><Link href={`/discover?genre=${encodeURIComponent(x)}`} key={x}>{x}</Link>)}</section>
+    <section className="genre-strip" aria-label="Genre"><Link className="active" href="/browse">Browse</Link>{DISCOVERY_GENRES.map(item=><Link href={`/genre/${item.slug}`} key={item.slug}>{item.label}</Link>)}</section>
 
     <section className="home-section premium-section"><div className="section-title-row"><div><span className="eyebrow">Trending</span><h2>Sedang ramai</h2></div><Link href="/discover">Lihat semua ›</Link></div><div className="premium-grid">{dramas.slice(0,8).map((d,i)=><DramaCard key={d.id} drama={d} index={i} priority={i<2}/>)}</div></section>
 
+    <EpisodeUpdates dramas={dramas}/>
     <AdSlot placement="home"/>
+    <CollectionStrip/>
 
-    <section className="home-section premium-section" id="providers"><div className="section-title-row"><div><span className="eyebrow">Sumber Konten</span><h2>Provider sehat</h2></div><Link href="/discover">Semua provider ›</Link></div>
+    <section className="home-section premium-section" id="providers"><div className="section-title-row"><div><span className="eyebrow">Sumber Konten</span><h2>Provider sehat</h2></div><Link href="/browse#providers">Semua provider ›</Link></div>
       {captain.length?<div className="provider-block"><h3>Captain <small>primary</small></h3><div className="provider-chip-grid">{captain.map(p=><Link href={`/provider/${p.slug}`} key={p.slug}><span className="source-dot captain"/><strong>{p.name}</strong></Link>)}</div></div>:null}
       {sansekai.length?<div className="provider-block"><h3>Sansekai <small>fallback</small></h3><div className="provider-chip-grid">{sansekai.map(p=><Link href={`/provider/${p.slug}`} key={p.slug}><span className="source-dot sansekai"/><strong>{p.name}</strong></Link>)}</div></div>:null}
     </section>

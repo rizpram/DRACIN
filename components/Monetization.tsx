@@ -81,7 +81,9 @@ export function SupportButton() {
 
 export function LegalFooter() {
   return (
-    <footer className="legal-footer" aria-label="Informasi legal dan iklan">
+    <footer className="legal-footer" aria-label="Informasi DRACIN">
+      <Link href="/about">Tentang</Link>
+      <Link href="/content-sources">Sumber</Link>
       <Link href="/privacy">Privasi</Link>
       <a href="/ads.txt">ads.txt</a>
     </footer>
