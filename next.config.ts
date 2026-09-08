@@ -5,9 +5,10 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   images: {
     remotePatterns: [
-      { protocol: "https", hostname: "images.unsplash.com" },
-      { protocol: "https", hostname: "image.tmdb.org" }
-    ]
+      { protocol: "https", hostname: "**" }
+    ],
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 86400,
   }
 };
 
