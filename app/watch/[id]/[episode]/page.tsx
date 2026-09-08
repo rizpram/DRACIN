@@ -3,12 +3,16 @@ import HlsPlayer from "@/components/HlsPlayer";
 import { ClientWatchTracker } from "@/components/DramaUI";
 import { AdSlot } from "@/components/Monetization";
 import { getDrama, getEpisodeStream } from "@/lib/dramas";
+import { getVerifiedDrama, getVerifiedEpisodeStream } from "@/lib/playable-catalog";
 
+function decodeRouteId(value:string){try{return decodeURIComponent(value)}catch{return value}}
 function providerSlugFromId(id:string){const clean=id.startsWith("sansekai:")?id.slice("sansekai:".length):id;const i=clean.indexOf("--");return i>0?clean.slice(0,i):""}
 
 export default async function WatchPage({params}:{params:Promise<{id:string;episode:string}>}){
-  const {id,episode}=await params;
-  const drama=await getDrama(id);
+  const route=await params;
+  const id=decodeRouteId(route.id);
+  const episode=route.episode;
+  const drama=(await getVerifiedDrama(id)) || await getDrama(id);
   const episodeNumber=Number(episode);
 
   if(!drama){const provider=providerSlugFromId(id);return <main className="watch-shell premium-watch"><div className="watch-frame premium-watch-frame"><section className="unavailable-screen watch-unavailable"><span className="eyebrow">Playback belum siap</span><b>!</b><h1>Drama belum bisa dimuat</h1><p>Adapter detail provider ini belum berhasil membaca kontennya. Tidak diarahkan ke halaman 404 lagi.</p><div className="unavailable-actions"><Link className="primary-action" href={provider?`/provider/${provider}`:"/discover"}>Kembali</Link><Link className="ghost-action" href="/discover">Provider lain</Link></div></section></div></main>}
@@ -16,7 +20,7 @@ export default async function WatchPage({params}:{params:Promise<{id:string;epis
   const current=drama.episodes.find(x=>x.number===episodeNumber);
   if(!current){return <main className="watch-shell premium-watch"><div className="watch-frame premium-watch-frame"><section className="unavailable-screen watch-unavailable"><span className="eyebrow">Episode tidak tersedia</span><b>!</b><h1>{drama.title}</h1><p>Episode {Number.isFinite(episodeNumber)?episodeNumber:episode} tidak ditemukan pada daftar episode provider.</p><div className="unavailable-actions"><Link className="primary-action" href={`/drama/${drama.id}`}>Daftar Episode</Link><Link className="ghost-action" href={`/provider/${drama.provider}`}>Provider</Link></div></section></div></main>}
 
-  const streamUrl=await getEpisodeStream(drama,episodeNumber);
+  const streamUrl=(await getVerifiedEpisodeStream(drama,episodeNumber)) || await getEpisodeStream(drama,episodeNumber);
   const prev=drama.episodes.find(x=>x.number===episodeNumber-1);
   const next=drama.episodes.find(x=>x.number===episodeNumber+1);
   const nextHref=next?`/watch/${drama.id}/${next.number}`:undefined;

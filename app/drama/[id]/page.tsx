@@ -7,6 +7,7 @@ import { getCatalog } from "@/lib/catalog";
 import { getDrama, getDramas, type Drama } from "@/lib/dramas";
 import { directoryProvider } from "@/lib/provider-directory";
 
+function decodeRouteId(value:string){try{return decodeURIComponent(value)}catch{return value}}
 function providerSlugFromId(id:string){
   const clean=id.startsWith("sansekai:")?id.slice("sansekai:".length):id;
   const i=clean.indexOf("--");
@@ -28,7 +29,8 @@ async function recommendations(provider:string,id:string):Promise<Drama[]>{
 }
 
 export default async function DramaDetailPage({params}:{params:Promise<{id:string}>}){
-  const {id}=await params;
+  const route=await params;
+  const id=decodeRouteId(route.id);
   const drama=await getDrama(id);
   if(!drama){
     const provider=providerSlugFromId(id);
@@ -46,5 +48,5 @@ export default async function DramaDetailPage({params}:{params:Promise<{id:strin
     <section className="detail-section-premium"><div className="section-title-row"><div><span className="eyebrow">Episode</span><h2>Daftar Episode</h2></div><span>{drama.episodes.length} total</span></div>{playable?<div className="episode-number-grid-premium">{drama.episodes.map(ep=><Link key={ep.id} href={`/watch/${drama.id}/${ep.number}`}><b>{ep.number}</b><span>Episode {ep.number}</span></Link>)}</div>:<div className="premium-empty compact-empty"><h3>Episode belum berhasil diambil</h3><p>Coba provider lain atau cek lagi setelah adapter provider diperbarui.</p></div>}</section>
     <section className="detail-section-premium"><span className="eyebrow">Tentang</span><h2>Sinopsis</h2><p className="detail-synopsis">{drama.synopsis||"Sinopsis belum tersedia."}</p><div className="detail-tags"><span>{drama.genre||"Drama"}</span><span>{drama.providerName||drama.provider}</span><span>Vertical Short Drama</span></div></section>
     <LegalFooter/><BottomNav/>
-  </div></main>
+  </div></main>;
 }

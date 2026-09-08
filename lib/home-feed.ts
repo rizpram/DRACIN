@@ -1,10 +1,11 @@
-import { getCatalog } from "@/lib/catalog";
-import { getDramas, type Drama } from "@/lib/dramas";
+import type { Drama } from "@/lib/dramas";
+import { getPlayableCatalog } from "@/lib/playable-catalog";
 import { recordProviderHealth, type ProviderHealthStatus } from "@/lib/provider-health";
+import { VERIFIED_PLAYABLE_PROVIDERS } from "@/lib/playable-providers";
 import { getSharedJsonWithStatus, setSharedJson, type SharedCacheStatus } from "@/lib/shared-cache";
 
 const HOME_TTL_SECONDS = 300;
-const CURATED_HOME = ["flickreels", "cubetv", "netshort", "pinedrama"] as const;
+const CURATED_HOME = VERIFIED_PLAYABLE_PROVIDERS;
 
 export type HomePayload = {
   dramas: Drama[];
@@ -28,28 +29,20 @@ function unique(rows: Drama[]) {
 }
 
 export async function getHomePayloadWithMeta(): Promise<HomePayloadResult> {
-  const cached = await getSharedJsonWithStatus<HomePayload>("home:v4");
+  const cached = await getSharedJsonWithStatus<HomePayload>("home:playable-v2");
   if (cached.value) return { payload: cached.value, cacheStatus: cached.status };
 
-  const defaultPromise = getDramas();
-  const providerPromises = CURATED_HOME.map(async (slug) => {
-    const rows = await getCatalog(slug);
-    await recordProviderHealth(slug, rows.length);
-    return { slug, rows };
-  });
+  const settled = await Promise.allSettled(
+    CURATED_HOME.map(async (slug) => {
+      const rows = await getPlayableCatalog(slug);
+      await recordProviderHealth(slug, rows.length, rows.length === 0);
+      return { slug, rows };
+    }),
+  );
 
-  const [defaultRows, settled] = await Promise.all([
-    defaultPromise,
-    Promise.allSettled(providerPromises),
-  ]);
-
-  await recordProviderHealth("freereels", defaultRows.length);
-
-  const health: Record<string, ProviderHealthStatus> = {
-    freereels: defaultRows.length ? "healthy" : "down",
-  };
-  const healthyProviders = defaultRows.length ? ["freereels"] : [];
-  const extra: Drama[] = [];
+  const health: Record<string, ProviderHealthStatus> = {};
+  const healthyProviders: string[] = [];
+  const rows: Drama[] = [];
 
   for (let i = 0; i < settled.length; i += 1) {
     const slug = CURATED_HOME[i];
@@ -57,15 +50,15 @@ export async function getHomePayloadWithMeta(): Promise<HomePayloadResult> {
     if (result.status === "fulfilled" && result.value.rows.length) {
       health[slug] = "healthy";
       healthyProviders.push(slug);
-      extra.push(...result.value.rows.slice(0, 4));
+      rows.push(...result.value.rows);
     } else {
       health[slug] = "down";
     }
   }
 
-  const dramas = unique([...defaultRows.slice(0, 16), ...extra]).slice(0, 28);
+  const dramas = unique(rows).slice(0, 24);
   const payload = { dramas, healthyProviders, health, generatedAt: Date.now() };
-  if (dramas.length) await setSharedJson("home:v4", payload, HOME_TTL_SECONDS);
+  if (dramas.length) await setSharedJson("home:playable-v2", payload, HOME_TTL_SECONDS);
   return { payload, cacheStatus: "MISS" };
 }
 
