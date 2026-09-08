@@ -50,6 +50,11 @@ export function sharedCacheEnabled() {
   return Boolean(redisUrl && redisToken);
 }
 
+export async function checkSharedCacheConnection() {
+  if (!sharedCacheEnabled()) return false;
+  return (await redisCommand(["PING"])) === "PONG";
+}
+
 export async function getSharedJson<T>(key: string): Promise<T | null> {
   const memory = localGet<T>(key);
   if (memory !== null) return memory;
