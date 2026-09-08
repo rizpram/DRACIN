@@ -6,6 +6,7 @@ import { getSharedJsonWithStatus, setSharedJson, type SharedCacheStatus } from "
 
 const HOME_TTL_SECONDS = 300;
 const CURATED_HOME = VERIFIED_PLAYABLE_PROVIDERS;
+const HOME_CACHE_KEY = "home:playable-v3";
 
 export type HomePayload = {
   dramas: Drama[];
@@ -29,7 +30,7 @@ function unique(rows: Drama[]) {
 }
 
 export async function getHomePayloadWithMeta(): Promise<HomePayloadResult> {
-  const cached = await getSharedJsonWithStatus<HomePayload>("home:playable-v2");
+  const cached = await getSharedJsonWithStatus<HomePayload>(HOME_CACHE_KEY);
   if (cached.value) return { payload: cached.value, cacheStatus: cached.status };
 
   const settled = await Promise.allSettled(
@@ -58,7 +59,7 @@ export async function getHomePayloadWithMeta(): Promise<HomePayloadResult> {
 
   const dramas = unique(rows).slice(0, 24);
   const payload = { dramas, healthyProviders, health, generatedAt: Date.now() };
-  if (dramas.length) await setSharedJson("home:playable-v2", payload, HOME_TTL_SECONDS);
+  if (dramas.length) await setSharedJson(HOME_CACHE_KEY, payload, HOME_TTL_SECONDS);
   return { payload, cacheStatus: "MISS" };
 }
 

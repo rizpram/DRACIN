@@ -1,9 +1,11 @@
 import Link from "next/link";
 import type { Drama } from "@/lib/dramas";
-import { DISCOVERY_COLLECTIONS, latestEpisodeRows } from "@/lib/discovery";
+import { DISCOVERY_COLLECTIONS } from "@/lib/discovery";
+import { getVerifiedLatestEpisodeNumber } from "@/lib/playable-catalog";
 
-export function EpisodeUpdates({ dramas }: { dramas: Drama[] }) {
-  const rows = latestEpisodeRows(dramas, 6);
+export async function EpisodeUpdates({ dramas }: { dramas: Drama[] }) {
+  const checked=await Promise.all(dramas.slice(0,12).map(async drama=>({drama,episode:await getVerifiedLatestEpisodeNumber(drama.id)})));
+  const rows=checked.filter((row):row is {drama:Drama;episode:number}=>typeof row.episode==="number").slice(0,6);
   if (!rows.length) return null;
   return (
     <section className="home-section premium-section">

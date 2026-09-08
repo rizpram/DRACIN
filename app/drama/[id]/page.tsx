@@ -5,6 +5,7 @@ import { BottomNav, ProviderBadge } from "@/components/AppChrome";
 import { DramaCard, FavoriteButton, ShareButton } from "@/components/DramaUI";
 import { getCatalog } from "@/lib/catalog";
 import { getDrama, getDramas, type Drama } from "@/lib/dramas";
+import { getVerifiedDrama } from "@/lib/playable-catalog";
 import { directoryProvider } from "@/lib/provider-directory";
 
 function decodeRouteId(value:string){try{return decodeURIComponent(value)}catch{return value}}
@@ -31,7 +32,7 @@ async function recommendations(provider:string,id:string):Promise<Drama[]>{
 export default async function DramaDetailPage({params}:{params:Promise<{id:string}>}){
   const route=await params;
   const id=decodeRouteId(route.id);
-  const drama=await getDrama(id);
+  const drama=(await getVerifiedDrama(id)) || await getDrama(id);
   if(!drama){
     const provider=providerSlugFromId(id);
     const suggested=await recommendations(provider,id);
