@@ -8,12 +8,14 @@ import { getSharedJson, setSharedJson } from "@/lib/shared-cache";
 const TTL_SECONDS = 10 * 60;
 const VERIFIED_DETAIL_TTL_SECONDS = 30 * 60;
 const VERIFIED_STREAM_TTL_SECONDS = 3 * 60;
+const VERIFIED_LATEST_TTL_SECONDS = 10 * 60;
 const MAX_CANDIDATES = 8;
 const BATCH_SIZE = 2;
 const MAX_PLAYABLE = 6;
 
 function detailKey(id:string){return `playable:detail:${id}`}
 function streamKey(id:string,episode:number){return `playable:stream:${id}:${episode}`}
+function latestKey(id:string){return `playable:latest:${id}`}
 
 async function resolveStream(detail:Drama,episode:Episode):Promise<string|null>{
   const provider=directoryProvider(detail.provider);
@@ -30,14 +32,32 @@ async function verifyOne(drama: Drama): Promise<Drama | null> {
     const detail = provider.source === "captain"
       ? await getProviderDrama(drama.id)
       : await getSansekaiDrama(drama.id);
-    const episode = detail?.episodes?.[0];
-    if (!detail || !episode) return null;
-    const streamUrl = await resolveStream(detail,episode);
-    if (!streamUrl) return null;
+    const first = detail?.episodes?.[0];
+    if (!detail || !first) return null;
+    const firstStream = await resolveStream(detail,first);
+    if (!firstStream) return null;
+
     await Promise.all([
       setSharedJson(detailKey(drama.id),detail,VERIFIED_DETAIL_TTL_SECONDS),
-      setSharedJson(streamKey(drama.id,episode.number),streamUrl,VERIFIED_STREAM_TTL_SECONDS),
+      setSharedJson(streamKey(drama.id,first.number),firstStream,VERIFIED_STREAM_TTL_SECONDS),
     ]);
+
+    const latest=detail.episodes[detail.episodes.length-1];
+    if(latest){
+      if(latest.number===first.number){
+        await setSharedJson(latestKey(drama.id),latest.number,VERIFIED_LATEST_TTL_SECONDS);
+      }else{
+        try{
+          const latestStream=await resolveStream(detail,latest);
+          if(latestStream){
+            await Promise.all([
+              setSharedJson(streamKey(drama.id,latest.number),latestStream,VERIFIED_STREAM_TTL_SECONDS),
+              setSharedJson(latestKey(drama.id),latest.number,VERIFIED_LATEST_TTL_SECONDS),
+            ]);
+          }
+        }catch{}
+      }
+    }
     return drama;
   } catch {
     return null;
@@ -46,6 +66,11 @@ async function verifyOne(drama: Drama): Promise<Drama | null> {
 
 export async function getVerifiedDrama(id:string):Promise<Drama|null>{
   return getSharedJson<Drama>(detailKey(id));
+}
+
+export async function getVerifiedLatestEpisodeNumber(id:string):Promise<number|null>{
+  const value=await getSharedJson<number>(latestKey(id));
+  return typeof value==="number"&&Number.isFinite(value)&&value>0?value:null;
 }
 
 export async function getVerifiedEpisodeStream(drama:Drama,episodeNumber:number):Promise<string|null>{
@@ -61,7 +86,7 @@ export async function getVerifiedEpisodeStream(drama:Drama,episodeNumber:number)
 }
 
 export async function getPlayableCatalog(slug: string): Promise<Drama[]> {
-  const key = `catalog:${slug}:playable-v3`;
+  const key = `catalog:${slug}:playable-v4`;
   const cached = await getSharedJson<Drama[]>(key);
   if (cached) return cached;
 
