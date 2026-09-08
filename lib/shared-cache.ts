@@ -1,11 +1,22 @@
 type LocalEntry = { expiresAt: number; value: unknown };
 
+export type SharedCacheStatus = "MEMORY_HIT" | "REDIS_HIT" | "MISS";
+export type SharedCacheResult<T> = { value: T | null; status: SharedCacheStatus };
+
 const local = new Map<string, LocalEntry>();
 const inflight = new Map<string, Promise<unknown>>();
+const metrics = {
+  memoryHits: 0,
+  redisHits: 0,
+  misses: 0,
+  sets: 0,
+  redisFailures: 0,
+};
 
 const redisUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || "";
 const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || "";
-const prefix = process.env.DRACIN_CACHE_PREFIX || "dracin";
+const cacheEnvironment = process.env.VERCEL_ENV || process.env.NODE_ENV || "development";
+const prefix = `${process.env.DRACIN_CACHE_PREFIX || "dracin"}:${cacheEnvironment}`;
 
 function fullKey(key: string) {
   return `${prefix}:${key}`;
@@ -38,10 +49,14 @@ async function redisCommand(command: unknown[]): Promise<unknown> {
       cache: "no-store",
       signal: AbortSignal.timeout(1500),
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      metrics.redisFailures += 1;
+      return null;
+    }
     const payload = (await response.json()) as { result?: unknown };
     return payload.result ?? null;
   } catch {
+    metrics.redisFailures += 1;
     return null;
   }
 }
@@ -55,25 +70,42 @@ export async function checkSharedCacheConnection() {
   return (await redisCommand(["PING"])) === "PONG";
 }
 
-export async function getSharedJson<T>(key: string): Promise<T | null> {
+export async function getSharedJsonWithStatus<T>(key: string): Promise<SharedCacheResult<T>> {
   const memory = localGet<T>(key);
-  if (memory !== null) return memory;
+  if (memory !== null) {
+    metrics.memoryHits += 1;
+    return { value: memory, status: "MEMORY_HIT" };
+  }
 
   const raw = await redisCommand(["GET", fullKey(key)]);
-  if (typeof raw !== "string" || !raw) return null;
+  if (typeof raw !== "string" || !raw) {
+    metrics.misses += 1;
+    return { value: null, status: "MISS" };
+  }
+
   try {
     const parsed = JSON.parse(raw) as { expiresAt?: number; value?: T };
-    if (!parsed.expiresAt || parsed.expiresAt <= Date.now()) return null;
+    if (!parsed.expiresAt || parsed.expiresAt <= Date.now()) {
+      metrics.misses += 1;
+      return { value: null, status: "MISS" };
+    }
     const remaining = Math.max(1, Math.ceil((parsed.expiresAt - Date.now()) / 1000));
     localSet(key, parsed.value as T, remaining);
-    return parsed.value as T;
+    metrics.redisHits += 1;
+    return { value: parsed.value as T, status: "REDIS_HIT" };
   } catch {
-    return null;
+    metrics.misses += 1;
+    return { value: null, status: "MISS" };
   }
+}
+
+export async function getSharedJson<T>(key: string): Promise<T | null> {
+  return (await getSharedJsonWithStatus<T>(key)).value;
 }
 
 export async function setSharedJson<T>(key: string, value: T, ttlSeconds: number) {
   localSet(key, value, ttlSeconds);
+  metrics.sets += 1;
   if (!redisUrl || !redisToken) return;
   const envelope = JSON.stringify({ expiresAt: Date.now() + ttlSeconds * 1000, value });
   await redisCommand(["SETEX", fullKey(key), ttlSeconds, envelope]);
@@ -104,5 +136,21 @@ export function getSharedCacheStats() {
   const now = Date.now();
   let fresh = 0;
   for (const entry of local.values()) if (entry.expiresAt > now) fresh += 1;
-  return { localEntries: local.size, fresh, inflight: inflight.size, redis: sharedCacheEnabled() };
+  const totalLookups = metrics.memoryHits + metrics.redisHits + metrics.misses;
+  const totalHits = metrics.memoryHits + metrics.redisHits;
+  return {
+    localEntries: local.size,
+    fresh,
+    inflight: inflight.size,
+    redis: sharedCacheEnabled(),
+    environment: cacheEnvironment,
+    lookups: totalLookups,
+    hits: totalHits,
+    misses: metrics.misses,
+    memoryHits: metrics.memoryHits,
+    redisHits: metrics.redisHits,
+    hitRate: totalLookups ? Math.round((totalHits / totalLookups) * 1000) / 10 : 0,
+    sets: metrics.sets,
+    redisFailures: metrics.redisFailures,
+  };
 }

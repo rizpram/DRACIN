@@ -1,7 +1,7 @@
 import { getCatalog } from "@/lib/catalog";
 import { getDramas, type Drama } from "@/lib/dramas";
 import { recordProviderHealth, type ProviderHealthStatus } from "@/lib/provider-health";
-import { getSharedJson, setSharedJson } from "@/lib/shared-cache";
+import { getSharedJsonWithStatus, setSharedJson, type SharedCacheStatus } from "@/lib/shared-cache";
 
 const HOME_TTL_SECONDS = 300;
 const CURATED_HOME = ["flickreels", "cubetv", "netshort", "pinedrama"] as const;
@@ -13,6 +13,11 @@ export type HomePayload = {
   generatedAt: number;
 };
 
+export type HomePayloadResult = {
+  payload: HomePayload;
+  cacheStatus: SharedCacheStatus;
+};
+
 function unique(rows: Drama[]) {
   const seen = new Set<string>();
   return rows.filter((drama) => {
@@ -22,9 +27,9 @@ function unique(rows: Drama[]) {
   });
 }
 
-export async function getHomePayload(): Promise<HomePayload> {
-  const cached=await getSharedJson<HomePayload>("home:v4");
-  if(cached)return cached;
+export async function getHomePayloadWithMeta(): Promise<HomePayloadResult> {
+  const cached = await getSharedJsonWithStatus<HomePayload>("home:v4");
+  if (cached.value) return { payload: cached.value, cacheStatus: cached.status };
 
   const defaultPromise = getDramas();
   const providerPromises = CURATED_HOME.map(async (slug) => {
@@ -59,7 +64,11 @@ export async function getHomePayload(): Promise<HomePayload> {
   }
 
   const dramas = unique([...defaultRows.slice(0, 16), ...extra]).slice(0, 28);
-  const payload={ dramas, healthyProviders, health, generatedAt: Date.now() };
-  if(dramas.length)await setSharedJson("home:v4",payload,HOME_TTL_SECONDS);
-  return payload;
+  const payload = { dramas, healthyProviders, health, generatedAt: Date.now() };
+  if (dramas.length) await setSharedJson("home:v4", payload, HOME_TTL_SECONDS);
+  return { payload, cacheStatus: "MISS" };
+}
+
+export async function getHomePayload(): Promise<HomePayload> {
+  return (await getHomePayloadWithMeta()).payload;
 }
