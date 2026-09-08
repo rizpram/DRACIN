@@ -1,5 +1,5 @@
-import { getCatalog } from "@/lib/catalog";
 import type { Drama } from "@/lib/dramas";
+import { getPlayableCatalog } from "@/lib/playable-catalog";
 import { recordProviderHealth, type ProviderHealthStatus } from "@/lib/provider-health";
 import { VERIFIED_PLAYABLE_PROVIDERS } from "@/lib/playable-providers";
 import { getSharedJsonWithStatus, setSharedJson, type SharedCacheStatus } from "@/lib/shared-cache";
@@ -29,13 +29,13 @@ function unique(rows: Drama[]) {
 }
 
 export async function getHomePayloadWithMeta(): Promise<HomePayloadResult> {
-  const cached = await getSharedJsonWithStatus<HomePayload>("home:playable-v1");
+  const cached = await getSharedJsonWithStatus<HomePayload>("home:playable-v2");
   if (cached.value) return { payload: cached.value, cacheStatus: cached.status };
 
   const settled = await Promise.allSettled(
     CURATED_HOME.map(async (slug) => {
-      const rows = await getCatalog(slug);
-      await recordProviderHealth(slug, rows.length);
+      const rows = await getPlayableCatalog(slug);
+      await recordProviderHealth(slug, rows.length, rows.length === 0);
       return { slug, rows };
     }),
   );
@@ -50,15 +50,15 @@ export async function getHomePayloadWithMeta(): Promise<HomePayloadResult> {
     if (result.status === "fulfilled" && result.value.rows.length) {
       health[slug] = "healthy";
       healthyProviders.push(slug);
-      rows.push(...result.value.rows.slice(0, 12));
+      rows.push(...result.value.rows);
     } else {
       health[slug] = "down";
     }
   }
 
-  const dramas = unique(rows).slice(0, 32);
+  const dramas = unique(rows).slice(0, 24);
   const payload = { dramas, healthyProviders, health, generatedAt: Date.now() };
-  if (dramas.length) await setSharedJson("home:playable-v1", payload, HOME_TTL_SECONDS);
+  if (dramas.length) await setSharedJson("home:playable-v2", payload, HOME_TTL_SECONDS);
   return { payload, cacheStatus: "MISS" };
 }
 
