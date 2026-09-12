@@ -22,7 +22,7 @@ export default function IncidentReporterClient(){
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
 
-  const valid=useMemo(()=>provider.trim()&&endpoint.trim()&&firstFailureAt&&lastFailureAt&&failures.some(f=>f.episode||f.kind),[provider,endpoint,firstFailureAt,lastFailureAt,failures]);
+  const valid=useMemo(()=>Boolean(provider.trim()&&endpoint.trim()&&firstFailureAt&&lastFailureAt&&failures.some(f=>f.episode||f.kind)),[provider,endpoint,firstFailureAt,lastFailureAt,failures]);
   function updateFailure(i:number,key:keyof Failure,value:string){setFailures(v=>v.map((f,n)=>n===i?{...f,[key]:value}:f))}
   function toIso(v:string){return v?new Date(v).toISOString():''}
   async function generate(){
